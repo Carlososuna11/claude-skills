@@ -1,219 +1,230 @@
 ---
 name: use-worktrees
-description: Use BEFORE starting any code change (fix or feature). Creates an isolated git worktree from the project's integration branch, opens a descriptive feature branch in it, and when the work is done helps open the PR back to that base. Asks the user for the integration branch the first time in each repo (main, master, staging, dev, develop, trunk...) and remembers it for the rest of the session.
+description: Usar antes de iniciar cualquier fix, feature, refactor o chore que vaya a producir sus propios commits y PR — especialmente en repos donde la rama de integración no es main (puede ser staging, master, dev, develop, trunk). Cubre desde detectar aislamiento existente hasta abrir el PR contra la base correcta.
 ---
 
-# Use Worktrees (con detección de base + apertura de PR)
+# Use Worktrees
 
-> Regla: nunca tocar el checkout principal para implementar fixes o
-> features. Cada trabajo vive en su propio `git worktree` con su propio
-> feature branch, y termina con un PR hacia la rama de integración del
-> repo (la que el usuario haya definido como base).
+## Overview
 
-## Por qué
+Cada trabajo vive en su propio workspace aislado y termina con un PR
+hacia la rama de integración real del repo (no necesariamente `main`).
 
-- **Aisla** cada fix/feature de los demás — puedes tener 3-4 trabajos en
-  paralelo sin tocar el árbol principal.
-- **Permite paralelizar**: tests corriendo en un worktree, revisión en
-  otro, desarrollo en un tercero.
-- **Mantiene el árbol limpio**: si hay que volver a la rama de integración
-  rápido para algo urgente, no hay cambios sucios bloqueando.
-- **Cierra el ciclo correctamente**: el PR va a la rama que el equipo
-  realmente usa como integración (no siempre `main` — puede ser `master`,
-  `staging`, `dev`, `develop`, `trunk`, etc.).
+**Principio:** detectar aislamiento primero, preferir herramientas nativas,
+caer a `git worktree` solo si hace falta. Nunca asumir la base — resolverla,
+guardarla, y usarla hasta el final.
 
-## Cuándo se invoca
+**Anunciar al inicio:** "Usando la skill `use-worktrees` para preparar el
+workspace y resolver la rama base."
 
-Antes de cualquiera de estas acciones:
+## Step 0: Detectar aislamiento existente
 
-- Empezar a implementar un fix o feature solicitado por el usuario.
-- Empezar a ejecutar un plan generado por una skill de planeación.
-- Aceptar una tarea que va a generar commits propios.
+```bash
+GIT_DIR=$(cd "$(git rev-parse --git-dir)" 2>/dev/null && pwd -P)
+GIT_COMMON=$(cd "$(git rev-parse --git-common-dir)" 2>/dev/null && pwd -P)
+git rev-parse --show-superproject-working-tree 2>/dev/null   # vacío = no submódulo
+```
 
-## Cuándo NO aplicar
+- Si `GIT_DIR != GIT_COMMON` y no es submódulo → **ya estás en un worktree**.
+  Saltar a Step 2.
+- Si hay una tool nativa (`EnterWorktree`, `/worktree`, `--worktree`),
+  usarla y saltar a Step 2. NO correr `git worktree add` cuando hay tool
+  nativa — crea estado fantasma que la plataforma no maneja.
 
-- Edición de archivos meta (workspace tasks, memorias `~/.claude/`,
-  configs personales) — esos viven fuera de los repos de código.
-- Cambios triviales de un solo archivo que no necesitan PR (typo en
-  README, comentario). En la duda, sí worktree.
-- Hotfix urgente al checkout principal que se va a commitear y mergear
-  en menos de 5 minutos, con el usuario presente confirmando.
+## Step 1: Resolver la rama base (waterfall)
 
-## Procedimiento
+Esta es la decisión que cambia entre proyectos. Resolverla en este orden,
+parar en el primer paso que dé respuesta:
 
-### Paso 1 — Determinar la rama de integración (base) del repo
+```dot
+digraph base_resolution {
+    rankdir=TB;
+    "Memoria reference_base_branch_<repo>.md existe?" [shape=diamond];
+    "Usar valor de memoria" [shape=box];
+    "CLAUDE.md/CONTRIBUTING.md/README declaran base?" [shape=diamond];
+    "Usar valor declarado" [shape=box];
+    ".github/workflows triggerea desde una rama?" [shape=diamond];
+    "Usar esa rama" [shape=box];
+    "gh repo view default y usuario confirma?" [shape=diamond];
+    "Usar default" [shape=box];
+    "Preguntar al usuario" [shape=box];
 
-Esta es **la decisión más importante** y la única que cambia entre
-proyectos. La skill busca la base en tres lugares, en orden:
+    "Memoria reference_base_branch_<repo>.md existe?" -> "Usar valor de memoria" [label="sí"];
+    "Memoria reference_base_branch_<repo>.md existe?" -> "CLAUDE.md/CONTRIBUTING.md/README declaran base?" [label="no"];
+    "CLAUDE.md/CONTRIBUTING.md/README declaran base?" -> "Usar valor declarado" [label="sí"];
+    "CLAUDE.md/CONTRIBUTING.md/README declaran base?" -> ".github/workflows triggerea desde una rama?" [label="no"];
+    ".github/workflows triggerea desde una rama?" -> "Usar esa rama" [label="sí"];
+    ".github/workflows triggerea desde una rama?" -> "gh repo view default y usuario confirma?" [label="no"];
+    "gh repo view default y usuario confirma?" -> "Usar default" [label="sí"];
+    "gh repo view default y usuario confirma?" -> "Preguntar al usuario" [label="no/duda"];
+}
+```
 
-1. **Memoria previa**. Buscar en el sistema de auto-memoria de Claude un
-   archivo con la convención `reference_base_branch_<repo-name>.md`. Si
-   existe, leerlo y usar el valor que indique. No preguntar de nuevo.
+**Preguntar al usuario** solo si los 4 pasos anteriores no produjeron una
+respuesta sin ambigüedad. Mostrar las ramas remotas y preguntar literal:
 
-2. **Convenciones documentadas del repo**. Si no hay memoria, revisar
-   en este orden:
-   - El `CLAUDE.md` del repo (suele decir cuál es la rama de PRs).
-   - El `CONTRIBUTING.md` o `README.md`.
-   - Workflow files en `.github/workflows/` (la rama que dispara deploys
-     suele ser la de integración).
+```bash
+git branch -r | grep -v HEAD | head -10
+```
 
-3. **Default branch del remoto**. Si nada documenta la convención:
-   ```bash
-   gh repo view --json defaultBranchRef -q '.defaultBranchRef.name'
-   ```
-   Esto da un buen candidato, pero no es definitivo (algunos equipos
-   usan `staging` como integración aunque `main` sea el default).
+> "Para abrir PRs en este repo, ¿cuál es la rama de integración?
+> (suele ser `main`, `master`, `staging`, `dev`, `develop` o `trunk`)"
 
-4. **Preguntar al usuario** (paso obligatorio si los anteriores no dan
-   certeza). Mostrar las ramas remotas para que el usuario elija:
-   ```bash
-   git branch -r | head -10
-   ```
-   Y preguntar literalmente:
-   > "Para abrir PRs en este repo, ¿cuál es la rama de integración
-   > a la que apuntan los feature branches? (suele ser `main`,
-   > `master`, `staging`, `dev`, `develop` o `trunk`)"
+## Step 2: Persistir la base en memoria
 
-   Esperar la respuesta. Confirmar antes de seguir.
+Una vez resuelta, guardar como auto-memoria para que sesiones futuras no
+vuelvan a preguntar. Convención exacta (matchea `reference_n8n_instances.md`,
+`reference_ve_tools.md`, etc.):
 
-### Paso 2 — Guardar la decisión en memoria
+**Ruta del archivo de memoria** (auto-memory dir; Claude conoce la ruta
+exacta en su system prompt):
 
-Una vez confirmada la base, **guardar como auto-memory** para no volver
-a preguntar. Crear el archivo de memoria con este contenido:
+```
+<auto_memory_dir>/reference_base_branch_<repo>.md
+```
+
+`<repo>` es el nombre del directorio del repo, en minúsculas y con guiones.
+
+**Contenido exacto:**
 
 ```markdown
 ---
-name: reference-base-branch-<repo-name>
-description: Rama de integración del repo <repo-name>. Todos los feature branches parten de aquí y los PRs apuntan acá.
+name: reference-base-branch-<repo>
+description: Rama de integración del repo <repo>. Feature branches parten de aquí y PRs apuntan acá.
 metadata:
   type: reference
 ---
 
-**Repo**: `<owner>/<repo-name>` (path local: `<absolute path>`)
-**Rama de integración**: `<branch>`
+**Repo:** `<owner>/<repo>` (path local: `<absolute path>`)
+**Rama de integración:** `<branch>`
+**Cómo se determinó:** <"usuario confirmó YYYY-MM-DD" | "CLAUDE.md" | "gh default + usuario confirmó">
 
-**Cómo se determinó**: <"el usuario lo confirmó el YYYY-MM-DD" |
-"está documentado en CLAUDE.md" | "es el default del remoto y el
-usuario confirmó">
-
-**Cómo aplicar**:
-- `git worktree add` parte de `origin/<branch>`.
-- Los PRs se abren con `gh pr create --base <branch>`.
-- Si el equipo cambia la convención, actualizar esta memoria y notificar.
+Aplicar: `git worktree add` parte de `origin/<branch>`. `gh pr create --base <branch>`.
 ```
 
-Y agregar la línea correspondiente al `MEMORY.md` index.
+**Append a `MEMORY.md`** una sola línea, mismo estilo que las existentes:
 
-### Paso 3 — Crear el worktree con su feature branch
-
-```bash
-# Desde la raíz del checkout principal:
-git fetch origin
-
-# Carpeta hermana, nombre descriptivo del fix/feature
-WORKTREE_PATH="../<repo>-<feature-slug>"
-BRANCH_NAME="<feature|fix|chore>/<descriptive-slug>"
-BASE_BRANCH="<el branch resuelto en Paso 1>"
-
-git worktree add -b "$BRANCH_NAME" "$WORKTREE_PATH" "origin/$BASE_BRANCH"
-cd "$WORKTREE_PATH"
+```
+- [Base branch <repo>](reference_base_branch_<repo>.md) — <branch>
 ```
 
-Convenciones de naming:
+Si no se puede resolver el auto-memory dir, escribir a `.claude/memory/`
+en la raíz del repo y avisarle al usuario.
 
-| Tipo de trabajo | Prefijo del branch | Ejemplo |
-|---|---|---|
-| Feature nueva | `feature/` | `feature/onboarding-revamp` |
-| Bug fix | `fix/` | `fix/cache-invalidation-stale-data` |
-| Refactor | `refactor/` | `refactor/extract-payment-validator` |
-| Tarea menor | `chore/` | `chore/upgrade-node-22` |
-| Docs solamente | `docs/` | `docs/api-reference-v3` |
-
-Si el repo usa otra convención (`bugfix/`, `task/`, IDs de ticket,
-etc.), respetarla. Verificar en commits previos o `CONTRIBUTING.md`.
-
-Carpeta del worktree:
-- Hermana del checkout principal (`../<repo>-<feature-slug>`).
-- Nombre descriptivo del trabajo, no del autor.
-- Ejemplos: `api-cache-invalidation-bug`, `frontend-onboarding-revamp`,
-  `infra-db-migration-v2`.
-
-### Paso 4 — Trabajar en el worktree
-
-- Todos los edits, commits y tests se hacen en `$WORKTREE_PATH`.
-- Si el proyecto tiene un ambiente especial para tests (servidor de CI
-  remoto, contenedor compartido), los tests siguen corriendo donde
-  corresponda — el worktree solo aísla código, no infraestructura.
-- Si por error se hicieron cambios en el checkout principal antes de
-  invocar esta skill, mover con `git stash` al worktree nuevo y aplicar.
-- Cada commit en su propio mensaje claro. Si el repo tiene una skill o
-  convención de mensajes de commit, respetarla.
-
-### Paso 5 — Cerrar con PR a la base correcta
-
-Cuando el trabajo está listo (tests pasan, lint limpio, review propio
-hecho):
+## Step 3: Crear el worktree
 
 ```bash
-# Asegurar que estamos al día con la base
 git fetch origin
-git rebase "origin/$BASE_BRANCH"   # o merge, según convención del repo
+BASE="<rama resuelta en Step 1>"
+SLUG="<tipo>/<descriptive-slug>"   # feature/, fix/, refactor/, chore/, docs/, perf/, test/
+PATH_WT="../$(basename "$PWD")-${SLUG##*/}"
 
-# Push del feature branch al remoto
-git push -u origin "$BRANCH_NAME"
+# Precondiciones
+git ls-remote --exit-code --heads origin "$BASE" >/dev/null || { echo "Base $BASE no existe en origin"; exit 1; }
+[ -e "$PATH_WT" ] && { echo "$PATH_WT ya existe"; exit 1; }
+git show-ref --verify --quiet "refs/heads/$SLUG" && { echo "Branch $SLUG ya existe local"; exit 1; }
 
-# Abrir el PR apuntando a la base correcta (NO al default branch a ciegas)
-gh pr create --base "$BASE_BRANCH" --head "$BRANCH_NAME" \
+git worktree add -b "$SLUG" "$PATH_WT" "origin/$BASE"
+cd "$PATH_WT"
+```
+
+Si el repo usa otra convención de prefijos (`bugfix/`, ID de ticket),
+respetarla — verificar `git log --oneline -20` y `CONTRIBUTING.md`.
+
+## Step 4: Setup + baseline
+
+```bash
+[ -f package.json ]    && npm install
+[ -f pyproject.toml ]  && (poetry install 2>/dev/null || pip install -e .)
+[ -f requirements.txt ] && pip install -r requirements.txt
+[ -f Cargo.toml ]      && cargo build
+[ -f go.mod ]          && go mod download
+
+# Baseline: tests verdes antes de tocar nada
+<comando de tests del proyecto>
+```
+
+Si los tests fallan en baseline, **parar y reportar** — no se puede
+distinguir un bug nuevo de uno preexistente.
+
+## Step 5: Trabajar
+
+- Todos los edits y commits ocurren en el worktree.
+- Si por error hay cambios en el checkout principal, `git stash` ahí y
+  `git stash pop` en el worktree.
+
+## Step 6: Cerrar con PR
+
+```bash
+# Precondiciones
+gh auth status >/dev/null 2>&1 || { echo "gh no autenticado"; exit 1; }
+git fetch origin
+
+# Default seguro: fast-forward merge. Rebase SOLO si la branch nunca fue
+# pusheada o el equipo lo manda explícitamente.
+git merge --ff-only "origin/$BASE" || { echo "No FF-able. Resolver manual."; exit 1; }
+
+git push -u origin "$SLUG"
+
+# El --base es OBLIGATORIO. No confiar en lo que gh infiera.
+gh pr create --base "$BASE" --head "$SLUG" \
   --title "<tipo>: <descripción corta>" \
-  --body "<descripción siguiendo la convención del proyecto>"
+  --body  "<descripción según convención del repo>"
+
+# Verificar antes de declarar éxito
+gh pr view --json url,baseRefName -q '"PR " + .url + " → " + .baseRefName'
 ```
 
-> **Crítico**: el `--base` es la rama de integración guardada en memoria
-> (Paso 1), no el default que `gh` use por su cuenta. Verificar antes
-> de presionar enter.
+## Report (al terminar)
 
-Si el proyecto tiene una skill o convención específica para abrir PRs
-(checklist de seguridad, formato de descripción, mención de tickets),
-invocarla o seguirla antes del `gh pr create`.
-
-### Paso 6 — Limpieza al terminar
-
-Cuando el PR se mergea (o se descarta):
-
-```bash
-cd <ruta del checkout principal>
-git worktree remove "../<repo>-<feature-slug>"
-
-# Y si la rama local también queda obsoleta:
-git branch -D "<feature|fix|chore>/<descriptive-slug>"
+```
+Worktree: <full path>
+Branch:   <slug> (base origin/<BASE>)
+Setup:    <ok | falló>
+Baseline: <N tests pasando | falló>
+PR:       <url o "pendiente">
 ```
 
-## Detalles que la skill respeta
+## Quick Reference
 
-- **No commitea en el principal**: si por error se hicieron cambios en
-  el checkout principal antes de invocar esta skill, se mueven con
-  `git stash` al worktree nuevo y se aplican ahí.
-- **No mezcla bases**: si un worktree fue creado desde la base resuelta
-  en Paso 1, todos los commits siguientes parten de ahí. Rebasar contra
-  otra base es una decisión consciente, no un accidente.
-- **Worktree por trabajo, no por sesión**: si Claude se reinicia y vuelve
-  al checkout principal, antes de seguir trabajando, recordar la regla
-  y retomar en el worktree apropiado.
-- **Memoria de la base sobrevive sesiones**: una vez que el usuario
-  confirmó "este repo usa `dev` como integración", esa decisión queda
-  en `reference_base_branch_<repo>.md` y la próxima sesión la respeta
-  sin volver a preguntar. Si el equipo migra (ej. `master` → `main`),
-  actualizar la memoria.
+| Situación | Acción |
+|---|---|
+| Ya en worktree linked | Saltar a Step 2 |
+| Hay tool nativa de worktree | Usarla, no `git worktree add` |
+| Memoria `reference_base_branch_<repo>.md` existe | Usar ese valor sin preguntar |
+| Base declarada en `CLAUDE.md` o `CONTRIBUTING.md` | Usarla, no preguntar |
+| Ningún paso del waterfall fue concluyente | Preguntar al usuario |
+| `BASE` no existe en `origin` | Abortar antes de crear worktree |
+| Path del worktree ya existe | Abortar, elegir otro slug |
+| Branch local ya existe | Abortar, elegir otro slug |
+| Tests fallan en baseline | Parar y reportar |
+| `gh auth status` falla | Pedirle al usuario que autentique |
+| `merge --ff-only` falla | Resolver manual; no rebasar automático |
 
-## Resultado esperado
+## Common Mistakes
 
-Cuando esta skill se invoca correctamente:
+- **Asumir `main` como base.** Resolver siempre con el waterfall del Step 1.
+- **`git rebase` automático.** Cambia historia y puede romper colaboradores;
+  usar `merge --ff-only` por default.
+- **`gh pr create` sin `--base`.** GitHub usa el default del repo, que no
+  siempre es la base correcta.
+- **Crear worktree dentro del repo principal.** Usar carpeta hermana
+  (`../<repo>-<slug>`) o `.worktrees/` solo si está en `.gitignore`.
+- **Saltar Step 0.** Crear worktree dentro de otro worktree rompe estado.
+- **Escribir la memoria con guiones (`reference-base-branch-...`)** cuando
+  el dir usa underscores (`reference_base_branch_...`). Match exacto.
 
-1. El usuario sabe (y la memoria registra) cuál es la rama de
-   integración del repo.
-2. Se crea un worktree hermano con un nombre claro.
-3. Se crea un feature branch con prefijo y nombre descriptivos,
-   partiendo de la base correcta.
-4. Todo el trabajo vive ahí; el checkout principal queda intacto.
-5. Al finalizar, el PR se abre apuntando a la base correcta (no al
-   default del remoto a ciegas).
+## Red Flags
+
+**Nunca:**
+- Correr `git worktree add` cuando hay tool nativa disponible.
+- Hacer commit en el checkout principal sin invocar esta skill primero.
+- Abrir un PR sin `--base` explícito.
+- Rebasear automáticamente — siempre `merge --ff-only` salvo orden explícita.
+- Declarar el PR abierto antes de verificar con `gh pr view`.
+
+**Siempre:**
+- Step 0 (detectar aislamiento) antes que nada.
+- Resolver la base con el waterfall y persistirla en memoria.
+- Verificar precondiciones (`gh auth`, base existe en remoto, path libre).
+- Cerrar reportando el resultado de `gh pr view` literal.
