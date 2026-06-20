@@ -91,10 +91,9 @@ metadata:
 Aplicar: `git worktree add` parte de `origin/<branch>`. `gh pr create --base <branch>`.
 ```
 
-**Append a `MEMORY.md`** una sola línea, mismo estilo que las existentes
-(reemplazar `<repo>` y `<branch>` por los valores reales):
-
-    - [Base branch REPO](reference_base_branch_REPO.md) — BRANCH
+**Append a `MEMORY.md`** una sola línea, mismo estilo que las existentes.
+Plantilla (reemplazar `REPO` y `BRANCH`):
+`- [Base branch REPO](reference_base_branch_REPO.md) — BRANCH`
 
 Si no se puede resolver el auto-memory dir, escribir a `.claude/memory/`
 en la raíz del repo y avisarle al usuario.
@@ -119,30 +118,15 @@ cd "$PATH_WT"
 Si el repo usa otra convención de prefijos (`bugfix/`, ID de ticket),
 respetarla — verificar `git log --oneline -20` y `CONTRIBUTING.md`.
 
-## Step 4: Setup del stack (delegar)
+Si por error había cambios sin commitear en el checkout principal,
+`git stash` ahí y `git stash pop` en el worktree recién creado.
 
-Esta skill es agnóstica al lenguaje. El setup (instalar deps, correr
-baseline de tests, lint, typecheck) cambia entre TS, Python, Go, Rust,
-etc. — vive en skills separadas, no acá.
+> **La skill se detiene acá.** El trabajo dentro del worktree (setup
+> de deps, edits, tests, commits) no es responsabilidad de esta skill.
+> Reinvocá la skill cuando el trabajo esté listo para abrir PR
+> (Step 4), o cuando haya que limpiar (Step 5).
 
-Si hay una skill `bootstrap-<stack>` instalada para el lenguaje del
-repo, **invocarla ahora**. Ejemplos: `bootstrap-ts`, `bootstrap-python`,
-`bootstrap-go`. En repos polyglot (ej. frontend TS + backend Python),
-invocar las dos.
-
-Si no hay skill de bootstrap disponible: revisar `CLAUDE.md` / `README.md`
-del repo para los comandos de setup, o pedírselos al usuario.
-
-**Regla:** no continuar al Step 5 sin baseline verde. Bug nuevo vs.
-preexistente son indistinguibles si el repo arrancó roto.
-
-## Step 5: Trabajar
-
-- Todos los edits y commits ocurren en el worktree.
-- Si por error hay cambios en el checkout principal, `git stash` ahí y
-  `git stash pop` en el worktree.
-
-## Step 6: Cerrar con PR
+## Step 4: Cerrar con PR
 
 ```bash
 # Precondiciones
@@ -164,13 +148,22 @@ gh pr create --base "$BASE" --head "$SLUG" \
 gh pr view --json url,baseRefName -q '"PR " + .url + " → " + .baseRefName'
 ```
 
+## Step 5: Limpieza (post-merge)
+
+Cuando el PR ya está mergeado en `BASE`:
+
+```bash
+cd <checkout principal>
+git worktree remove "$PATH_WT"
+git branch -D "$SLUG"   # solo si la branch local quedó obsoleta
+git fetch --prune origin
+```
+
 ## Report (al terminar)
 
 ```
 Worktree: <full path>
 Branch:   <slug> (base origin/<BASE>)
-Setup:    <ok | falló>
-Baseline: <N tests pasando | falló>
 PR:       <url o "pendiente">
 ```
 
@@ -186,9 +179,9 @@ PR:       <url o "pendiente">
 | `BASE` no existe en `origin` | Abortar antes de crear worktree |
 | Path del worktree ya existe | Abortar, elegir otro slug |
 | Branch local ya existe | Abortar, elegir otro slug |
-| Tests fallan en baseline | Parar y reportar |
 | `gh auth status` falla | Pedirle al usuario que autentique |
 | `merge --ff-only` falla | Resolver manual; no rebasar automático |
+| PR ya mergeado | Step 5: `git worktree remove` + `git branch -D` |
 
 ## Common Mistakes
 
