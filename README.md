@@ -1,4 +1,4 @@
-# carlos-skills
+# claude-skills
 
 Skills personales para [Claude Code](https://claude.com/claude-code)
 refinadas en el trabajo diario sobre varios proyectos.
@@ -11,11 +11,11 @@ sentido versionarlas como skills.
 
 ```bash
 # Como plugin Claude Code
-claude code plugin install Carlososuna11/carlos-skills
+claude code plugin install Carlososuna11/claude-skills
 
 # O clonarlas directamente a tu carpeta de skills personales:
 cd ~/.claude/skills
-git clone https://github.com/Carlososuna11/carlos-skills.git
+git clone https://github.com/Carlososuna11/claude-skills.git
 ```
 
 Después, Claude Code carga las skills automáticamente cuando coincide su
