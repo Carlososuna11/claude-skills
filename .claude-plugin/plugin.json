@@ -3,11 +3,10 @@
   "description": "Skills personales de Carlos Osuna para Claude Code: disciplina de PRs, manejo seguro de operaciones destructivas, delegación a Codex, español venezolano neutro y otras prácticas refinadas a lo largo de varios proyectos.",
   "version": "0.1.0",
   "author": {
-    "name": "Carlos Osuna",
-    "email": "carlosalvaroosuna1@gmail.com"
+    "name": "Carlos Osuna"
   },
-  "homepage": "https://github.com/carlosalvaroosuna1/carlos-skills",
-  "repository": "https://github.com/carlosalvaroosuna1/carlos-skills",
+  "homepage": "https://github.com/Carlososuna11/carlos-skills",
+  "repository": "https://github.com/Carlososuna11/carlos-skills",
   "license": "MIT",
   "keywords": [
     "skills",

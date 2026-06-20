@@ -11,11 +11,11 @@ sentido versionarlas como skills.
 
 ```bash
 # Como plugin Claude Code
-claude code plugin install carlosalvaroosuna1/carlos-skills
+claude code plugin install Carlososuna11/carlos-skills
 
 # O clonarlas directamente a tu carpeta de skills personales:
 cd ~/.claude/skills
-git clone https://github.com/carlosalvaroosuna1/carlos-skills.git
+git clone https://github.com/Carlososuna11/carlos-skills.git
 ```
 
 Después, Claude Code carga las skills automáticamente cuando coincide su
