@@ -16,8 +16,8 @@ description: Use BEFORE starting to implement any fix or feature in a code repos
   desarrollo en un tercero.
 - **Mantiene el árbol limpio**: si hay que volver a `main` rápido para un
   hotfix, no hay cambios sucios bloqueando.
-- **El patrón ya está establecido** en los repos donde se usa
-  (`repositorios/`, carpetas hermanas con worktrees nombradas por feature).
+- **Patrón consistente** entre repos: carpetas hermanas del checkout
+  principal, una por feature/fix activo, nombradas descriptivamente.
 
 ## Cuándo se invoca
 
@@ -40,11 +40,11 @@ Esta skill **debe invocarse antes** de cualquiera de estas acciones:
 
 ### 1. Identificar la base correcta
 
-- Por defecto, la rama de integración del repo (verificar el `CLAUDE.md`
-  del proyecto). En Kontigo: `staging`. En la mayoría de proyectos
-  Innovares: `main`. En proyectos abiertos: lo que el README diga.
-- Si la skill `feedback_branch_from_staging` o equivalente aplica al
-  repo, respetarla.
+- Por defecto, la rama de integración del repo. Verificar el `CLAUDE.md`,
+  el `README` o el flujo de PRs del proyecto. Típicamente: `main`,
+  `staging`, `develop` o `trunk`, según el equipo.
+- Si el proyecto tiene una regla explícita sobre desde qué rama crear
+  feature branches (por ejemplo "siempre desde `staging`"), respetarla.
 
 ### 2. Crear el worktree
 
@@ -72,15 +72,16 @@ git checkout -b feature/<descriptive-name>
 Convención de naming de la carpeta:
 - Hermana del checkout principal (`../<repo>-<feature>`).
 - Nombre descriptivo del fix/feature, no del autor.
-- Ejemplos reales del patrón Kontigo: `core-api-alchemy-resilience`,
-  `core-api-megasoft-pci`.
+- Ejemplos: `api-cache-invalidation-bug`, `frontend-onboarding-revamp`,
+  `infra-db-migration-v2`.
 
 ### 3. Trabajar en el worktree
 
 - Todos los edits, commits y tests se hacen ahí.
-- Si la skill de testing aplica (`dev_caracas_core_api_tests` u
-  equivalente del proyecto), los tests siguen corriendo en el ambiente
-  que corresponda — el worktree solo aísla código, no infrastructure.
+- Si el proyecto tiene un ambiente especial para tests (servidor de CI
+  remoto, contenedor compartido, base de datos compartida), los tests
+  siguen corriendo donde corresponda — el worktree solo aísla código,
+  no infraestructura.
 
 ### 4. Limpieza al terminar
 

@@ -1,6 +1,6 @@
 {
   "name": "carlos-skills",
-  "description": "Skills personales de Carlos Osuna para Claude Code: disciplina de PRs, manejo seguro de operaciones destructivas, delegación a Codex, español venezolano neutro y otras prácticas refinadas trabajando en Innovares y Kontigo.",
+  "description": "Skills personales de Carlos Osuna para Claude Code: disciplina de PRs, manejo seguro de operaciones destructivas, delegación a Codex, español venezolano neutro y otras prácticas refinadas a lo largo de varios proyectos.",
   "version": "0.1.0",
   "author": {
     "name": "Carlos Osuna",
@@ -14,7 +14,6 @@
     "claude-code",
     "workflow",
     "spanish-venezuelan",
-    "innovares",
     "best-practices"
   ]
 }

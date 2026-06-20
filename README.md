@@ -1,11 +1,11 @@
 # carlos-skills
 
-Skills personales para [Claude Code](https://claude.com/claude-code) refinadas
-trabajando en proyectos de Innovares (Kontigo, DataGo/Mercadato) y otros.
+Skills personales para [Claude Code](https://claude.com/claude-code)
+refinadas en el trabajo diario sobre varios proyectos.
 
 No reemplazan los plugins oficiales (`superpowers`, `code-review`, etc.) —
-las complementan con prácticas específicas que repito tanto que tiene sentido
-versionarlas como skills.
+los complementan con prácticas específicas que se repiten tanto que tiene
+sentido versionarlas como skills.
 
 ## Instalación
 
@@ -25,7 +25,7 @@ Después, Claude Code carga las skills automáticamente cuando coincide su
 
 | Skill | Cuándo se invoca |
 |---|---|
-| [`use-worktrees`](./skills/use-worktrees/SKILL.md) | Antes de implementar un fix o feature en un repo de Innovares |
+| [`use-worktrees`](./skills/use-worktrees/SKILL.md) | Antes de implementar un fix o feature en cualquier repo de código |
 
 > **Estado**: en construcción. Más skills se van agregando a medida que se
 > destilan patrones útiles del trabajo diario.
@@ -46,7 +46,7 @@ invocar la skill. Mantenerlo claro y accionable.
 - `kebab-case`.
 - Verbo en imperativo o describiendo qué se hace, no quién la hizo.
   - ✅ `use-worktrees`, `careful-destructive-ops`, `pr-discipline`
-  - ❌ `carlos-worktrees`, `kontigo-canary` (la generalizamos primero)
+  - ❌ `carlos-worktrees`, `<proyecto>-canary` (si solo aplica a un proyecto, va en su repo)
 - Si una skill solo aplica a un proyecto, vive en el repo de ese proyecto
   (en `.claude/skills/`), no acá.
 
