@@ -91,11 +91,10 @@ metadata:
 Aplicar: `git worktree add` parte de `origin/<branch>`. `gh pr create --base <branch>`.
 ```
 
-**Append a `MEMORY.md`** una sola línea, mismo estilo que las existentes:
+**Append a `MEMORY.md`** una sola línea, mismo estilo que las existentes
+(reemplazar `<repo>` y `<branch>` por los valores reales):
 
-```
-- [Base branch <repo>](reference_base_branch_<repo>.md) — <branch>
-```
+    - [Base branch REPO](reference_base_branch_REPO.md) — BRANCH
 
 Si no se puede resolver el auto-memory dir, escribir a `.claude/memory/`
 en la raíz del repo y avisarle al usuario.
@@ -120,21 +119,22 @@ cd "$PATH_WT"
 Si el repo usa otra convención de prefijos (`bugfix/`, ID de ticket),
 respetarla — verificar `git log --oneline -20` y `CONTRIBUTING.md`.
 
-## Step 4: Setup + baseline
+## Step 4: Setup del stack (delegar)
 
-```bash
-[ -f package.json ]    && npm install
-[ -f pyproject.toml ]  && (poetry install 2>/dev/null || pip install -e .)
-[ -f requirements.txt ] && pip install -r requirements.txt
-[ -f Cargo.toml ]      && cargo build
-[ -f go.mod ]          && go mod download
+Esta skill es agnóstica al lenguaje. El setup (instalar deps, correr
+baseline de tests, lint, typecheck) cambia entre TS, Python, Go, Rust,
+etc. — vive en skills separadas, no acá.
 
-# Baseline: tests verdes antes de tocar nada
-<comando de tests del proyecto>
-```
+Si hay una skill `bootstrap-<stack>` instalada para el lenguaje del
+repo, **invocarla ahora**. Ejemplos: `bootstrap-ts`, `bootstrap-python`,
+`bootstrap-go`. En repos polyglot (ej. frontend TS + backend Python),
+invocar las dos.
 
-Si los tests fallan en baseline, **parar y reportar** — no se puede
-distinguir un bug nuevo de uno preexistente.
+Si no hay skill de bootstrap disponible: revisar `CLAUDE.md` / `README.md`
+del repo para los comandos de setup, o pedírselos al usuario.
+
+**Regla:** no continuar al Step 5 sin baseline verde. Bug nuevo vs.
+preexistente son indistinguibles si el repo arrancó roto.
 
 ## Step 5: Trabajar
 
