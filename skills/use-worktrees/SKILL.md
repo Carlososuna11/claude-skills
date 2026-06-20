@@ -10,7 +10,7 @@ description: Use BEFORE starting to implement any fix or feature in a code repos
 
 ## Por qué
 
-- **Aisla** cada fix/feature de los demás — vos podés tener 3-4 trabajos
+- **Aisla** cada fix/feature de los demás — puedes tener 3-4 trabajos
   en paralelo sin tocar el árbol principal.
 - **Permite paralelizar** trabajos: tests corriendo en uno, review en otro,
   desarrollo en un tercero.
