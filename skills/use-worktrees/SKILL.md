@@ -31,34 +31,23 @@ git rev-parse --show-superproject-working-tree 2>/dev/null   # vacío = no subm�
   usarla y saltar a Step 2. NO correr `git worktree add` cuando hay tool
   nativa — crea estado fantasma que la plataforma no maneja.
 
-## Step 1: Resolver la rama base (waterfall)
+## Step 1: Resolver la rama base
 
-Esta es la decisión que cambia entre proyectos. Resolverla en este orden,
-parar en el primer paso que dé respuesta:
+Esta es la decisión que cambia entre proyectos. Probar en este orden,
+**parar en el primer paso que dé respuesta sin ambigüedad**:
 
-```dot
-digraph base_resolution {
-    rankdir=TB;
-    "Memoria reference_base_branch_<repo>.md existe?" [shape=diamond];
-    "Usar valor de memoria" [shape=box];
-    "CLAUDE.md/CONTRIBUTING.md/README declaran base?" [shape=diamond];
-    "Usar valor declarado" [shape=box];
-    ".github/workflows triggerea desde una rama?" [shape=diamond];
-    "Usar esa rama" [shape=box];
-    "gh repo view default y usuario confirma?" [shape=diamond];
-    "Usar default" [shape=box];
-    "Preguntar al usuario" [shape=box];
-
-    "Memoria reference_base_branch_<repo>.md existe?" -> "Usar valor de memoria" [label="sí"];
-    "Memoria reference_base_branch_<repo>.md existe?" -> "CLAUDE.md/CONTRIBUTING.md/README declaran base?" [label="no"];
-    "CLAUDE.md/CONTRIBUTING.md/README declaran base?" -> "Usar valor declarado" [label="sí"];
-    "CLAUDE.md/CONTRIBUTING.md/README declaran base?" -> ".github/workflows triggerea desde una rama?" [label="no"];
-    ".github/workflows triggerea desde una rama?" -> "Usar esa rama" [label="sí"];
-    ".github/workflows triggerea desde una rama?" -> "gh repo view default y usuario confirma?" [label="no"];
-    "gh repo view default y usuario confirma?" -> "Usar default" [label="sí"];
-    "gh repo view default y usuario confirma?" -> "Preguntar al usuario" [label="no/duda"];
-}
-```
+1. **Memoria previa.** ¿Existe `reference_base_branch_<repo>.md` en el
+   auto-memory dir? → usar ese valor.
+2. **Convención documentada del repo.** Buscar mención explícita de la
+   rama de PRs en `CLAUDE.md`, luego `CONTRIBUTING.md`, luego `README.md`.
+3. **Triggers de CI.** Revisar `.github/workflows/*.yml`: la rama que
+   dispara los deploys suele ser la base.
+4. **Default del remoto.**
+   `gh repo view --json defaultBranchRef -q '.defaultBranchRef.name'`.
+   Buen candidato pero no definitivo (algunos equipos mergean a `staging`
+   aunque `main` sea el default).
+5. **Preguntar al usuario** — único paso obligatorio si los anteriores
+   dejaron duda. Ver abajo.
 
 **Preguntar al usuario** solo si los 4 pasos anteriores no produjeron una
 respuesta sin ambigüedad. Mostrar las ramas remotas y preguntar literal:
