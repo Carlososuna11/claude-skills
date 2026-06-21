@@ -180,7 +180,7 @@ qué falló y decidir si:
 ## Common Mistakes
 
 - **Delegar sin contexto del repo.** Codex no sabe la ruta absoluta,
-  el branch, ni el comando de tests si no se lo decís.
+  el branch, ni el comando de tests si no se lo dices.
 - **Asumir que `Thread ready` = está corriendo.** Verificar status.
 - **Pasar un modelo que no soporta la cuenta.** Falla silenciosa en 30s.
 - **Aceptar el reporte sin verificar el diff.** Codex puede afirmar
