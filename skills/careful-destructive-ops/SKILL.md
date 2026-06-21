@@ -1,6 +1,6 @@
 ---
 name: careful-destructive-ops
-description: Usar antes de ejecutar cualquier operación de blast radius alto que sea difícil o imposible de revertir — rm -rf, git reset --hard, git push --force/--force-with-lease, git branch -D, DROP TABLE/DATABASE, sobreescribir archivos sin leer, killall, o cualquier flag --no-verify/--no-gpg-sign/--skip-checks. También aplica cuando un reviewer recomienda revertir una decisión ya acordada con el usuario.
+description: Usar antes de ejecutar comandos difíciles o imposibles de revertir — borrado de archivos/branches/tablas, sobreescritura sin leer, force-push, reset --hard, flags --no-verify/--skip-checks. También al recibir una recomendación de reviewer que contradice una decisión ya acordada con el usuario.
 ---
 
 # Careful Destructive Ops
@@ -23,21 +23,28 @@ visible para otros (commits en main, force-push a branch protegida,
 DELETE de filas, archivos sobreescritos).
 
 ```
-Destructivo:                          NO destructivo:
-- rm / rm -rf                         - mv, cp
-- git reset --hard                    - git reset --soft, git stash
-- git push --force / -f               - git push normal
-- git branch -D                       - git branch -d (refuses if unmerged)
-- git checkout -- / git restore .     - git checkout <archivo específico>
-- DROP TABLE / TRUNCATE / DELETE all  - SELECT, UPDATE WHERE
-- Sobreescribir archivo > out         - Append >>
-- killall, kill -9                    - kill (SIGTERM)
-- --no-verify, --no-gpg-sign          - flags normales
-- gh repo delete                      - gh repo archive
+Destructivo siempre:                  NO destructivo:
+- rm / rm -rf                         - git reset --soft, git stash
+- git reset --hard                    - git push (sin --force)
+- git push --force / -f               - git branch -d (refuses if unmerged)
+- git branch -D                       - SELECT, UPDATE WHERE específico
+- git checkout -- / git restore .     - Append >>
+- DROP TABLE / TRUNCATE / DELETE all  - kill (SIGTERM)
+- Sobreescribir con > out             - flags estándar
+- killall, kill -9                    - gh repo archive
+- --no-verify, --no-gpg-sign
+- gh repo delete
+
+Destructivo si el destino YA EXISTE o hay cambios sin commitear:
+- mv / cp (sobreescriben sin avisar)
+- git checkout <archivo>              (descarta cambios locales del archivo)
+- git restore <archivo>               (mismo riesgo)
+- Write sobre archivo existente sin Read previo
+- > archivo existente
 ```
 
-Si está en la columna izquierda, seguir los steps. Si está en la
-derecha, no aplica.
+Si la operación cae en cualquier bloque destructivo, seguir los steps.
+Si está en "NO destructivo", no aplica.
 
 ## Step 1: Confirmar con el usuario antes de ejecutar
 
@@ -93,7 +100,9 @@ absorbing, rebase, squash):
    ```
 4. Para cada commit nuevo: ¿toca los mismos archivos que tú? ¿cambia
    signaturas que asumiste? ¿resuelve algo que ya tenías?
-5. Si todo OK: `git reset --hard origin/<branch>` + `git cherry-pick
+5. Si todo OK: ejecutar `git reset --hard origin/<branch>` siguiendo
+   Step 1 (mostrar comando + qué se pierde + pedir confirmación) +
+   `git cherry-pick
    <tus-shas>`. Resolver conflictos puntuales.
 6. Re-correr tests para confirmar que tus cambios siguen aplicables
    al HEAD nuevo.

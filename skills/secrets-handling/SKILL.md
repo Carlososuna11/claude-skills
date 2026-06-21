@@ -1,6 +1,6 @@
 ---
 name: secrets-handling
-description: Usar antes de ejecutar comandos que puedan exponer credenciales — leer archivos de config de CLI (~/.aws/credentials, ~/.netrc, ~/.config/gh/hosts.yml, ~/.docker/config.json, ~/.npmrc, ~/.pypirc, ~/.pgpass, ~/.railway/config.json), dumps de env (env, printenv, set), comandos con password/token/api-key inline, o cualquier operación cuyo output incluya values de variables que contengan secrets.
+description: Usar antes de cualquier comando que pueda exponer credenciales — leer archivos de auth de CLIs, dumps de variables de entorno, comandos con tokens/passwords/keys inline. También al aprobar permisos del agente que contengan secrets, o si un secreto entra al contexto por accidente.
 ---
 
 # Secrets Handling
@@ -60,10 +60,14 @@ abrir con Read, no `cat`, no `head`, no `tail`:**
 | `~/.vercel/auth.json` | Vercel tokens |
 | `~/.ssh/id_*` (sin `.pub`) | Private keys |
 | `~/.kube/config` | Cluster tokens |
-| Cualquier archivo `.env` en repos | Posibles secrets |
+| `.env`, `.env.local`, `.env.production` en repos | Secrets reales |
 
-Si necesitás info que está en uno de estos archivos, **pedírsela al
-usuario**, no leer el archivo.
+**Excepción:** `.env.example` / `.env.sample` (sin valores reales,
+solo nombres de variables y placeholders) **sí** se pueden leer y se
+usan justamente para descubrir qué variables necesita el repo.
+
+Si necesitas info que está en uno de los archivos de la tabla,
+**pedírsela al usuario**, no leer el archivo.
 
 ## Step 2: Comandos que NUNCA hay que ejecutar
 
@@ -80,13 +84,17 @@ env | grep <pattern>
 env | awk -F= '...'
 printenv | sort
 
-# Leer envs de servicios remotos
+# Dumps de envs de servicios remotos (imprimen VALORES — prohibidos)
 railway run env
 railway variables
 heroku config
-flyctl secrets list  (los nombres están OK, los values NO)
 kubectl get secret <name> -o yaml
 docker exec <container> env
+
+# Versiones que listan SOLO nombres (sin valores) — sí están permitidas
+flyctl secrets list        # imprime nombres + timestamp, no valores
+heroku config:keys         # imprime nombres
+railway variables --kv | cut -d= -f1   # nombres derivados (verificar formato)
 
 # Comandos con password inline
 psql postgresql://user:password@host/db

@@ -1,6 +1,6 @@
 ---
 name: pr-discipline
-description: Usar antes y durante cualquier flujo de PR — abrir, revisar, comentar, mergear. Cubre alineación previa con el maintainer en cambios arquitectónicos, formato de title/body, atribución de commits (`-c user.email`), markdown limpio en gh CLI, estilo de comentarios de review, estrategia de merge (squash vs merge), y la regla de nunca mergear directo a main en repos con staging.
+description: Usar antes y durante cualquier flujo de Pull Request — abrir, revisar, comentar, mergear. También al considerar un cambio que toque contratos de API, validators, abstracciones arquitectónicas o patterns cross-repo.
 ---
 
 # PR Discipline

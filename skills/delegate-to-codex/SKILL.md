@@ -1,6 +1,6 @@
 ---
 name: delegate-to-codex
-description: Usar cuando una tarea consumiría muchos tokens del modelo principal y se puede delegar a Codex sin perder la decisión — ejecución mecánica (fixes, refactors, tests, migrations siguiendo un patrón), análisis profundo que alimenta una decisión (code review, second opinion, brainstorming generativo de alternativas, investigación cross-repo). NO usar para la decisión final, coordinación con stakeholders, curaduría de auto-memoria, o tareas que dependen de la conversación viva con el usuario.
+description: Usar antes de invocar a Codex (OpenAI) como subagente — para ejecución mecánica (aplicar fixes con diff claro, refactors, tests, migrations siguiendo patrón) o para análisis que alimenta una decisión (code review profundo, second opinion adversarial, brainstorming generativo, investigación cross-repo). También al armar el prompt y al validar el resultado.
 ---
 
 # Delegate to Codex
@@ -108,48 +108,44 @@ no-negociables.
 
 ## Step 3: Elegir el modelo correcto
 
-Codex tiene varios modelos disponibles. La cuenta del usuario puede no
-soportar todos — los modelos válidos están en `~/.codex/models_cache.json`.
+Codex (cuando se usa con cuenta ChatGPT) solo admite los modelos
+listados en su cache local de modelos. Pasar uno fuera del cache
+falla en <30 segundos con `invalid_request_error: The 'X' model is
+not supported when using Codex with a ChatGPT account`.
 
-```bash
-cat ~/.codex/models_cache.json | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-for m in sorted(data['models'], key=lambda x: -x.get('priority', 0)):
-    print(f\"{m['slug']:<25} {m.get('display_name', ''):<20} default_effort={m.get('default_reasoning_level', '')}\")"
-```
+**Cómo verificar los modelos válidos:** consultar la documentación
+del plugin de Codex instalado en este entorno. Suele exponer un
+helper o un archivo cache (ej. `~/.codex/models_cache.json`) que
+lista los slugs admitidos para la cuenta activa. Si no encuentras
+referencia, pídeselo al usuario antes de dispatchar.
 
-Recomendaciones generales (ajustar al cache actual):
+Guía general (ajustar al cache actual):
 
-| Tarea | Modelo recomendado |
+| Tarea | Effort recomendado |
 |---|---|
-| Review arquitectural serio / decisiones críticas | El frontier disponible (effort xhigh) |
-| Code review tradicional | El estándar (effort medium) |
+| Review arquitectural serio / decisiones críticas | Frontier disponible, effort xhigh |
+| Code review tradicional | Modelo estándar, effort medium |
 | Tarea mecánica / rápida | Variante mini |
-
-**Nunca** pasar un modelo que no esté en el cache — falla en <30 segundos
-con `invalid_request_error: The 'X' model is not supported when using
-Codex with a ChatGPT account`.
 
 ## Step 4: Verificar que Codex realmente arrancó
 
-El subagent puede mostrar `Thread ready` y `Turn started` y aún así
-fallar en <30s con error de modelo no soportado, workspace desactivado
-(billing), o tarea malformada. Verificar status:
+El subagente puede reportar `Thread ready` y `Turn started` y aún así
+fallar en <30s — modelo no soportado, workspace desactivado (billing),
+o tarea malformada.
 
-```bash
-node ~/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs status --json
-```
+Consulta el status del job recién dispatchado **antes** de declarar
+que está corriendo. La forma exacta depende del runtime del plugin
+(suele haber un comando `status --json` en el companion script del
+plugin de Codex). Mira:
 
-Mirar:
-- `Running` count → debería ser ≥1 si tu job está corriendo.
-- `latestFinished.status` → si es `failed` para tu jobId, relanzar
-  con el error reportado.
+- Conteo de jobs en `Running` → debe ser ≥1 si tu job arrancó.
+- `latestFinished.status` para tu `jobId` → si es `failed`, leer el
+  error y relanzar.
 
-**Falla común — `402 deactivated_workspace`:** el workspace de Codex
-en la cuenta de ChatGPT está desactivado (billing). No es problema de
-modelo. Mientras se reactiva, hacer el trabajo directo en el modelo
-principal.
+**Falla común — workspace desactivado (HTTP 402):** la cuenta ChatGPT
+tiene el workspace de Codex desactivado (billing/estado). No es
+problema de modelo. Mientras se reactiva, hacer el trabajo en el
+modelo principal.
 
 ## Step 5: Recibir el reporte y validar
 

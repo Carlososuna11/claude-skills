@@ -1,6 +1,6 @@
 ---
 name: use-worktrees
-description: Usar antes de iniciar cualquier fix, feature, refactor o chore que vaya a producir sus propios commits y PR — especialmente en repos donde la rama de integración no es main (puede ser staging, master, dev, develop, trunk). Cubre desde detectar aislamiento existente hasta abrir el PR contra la base correcta.
+description: Usar antes de iniciar trabajo de código que va a producir commits y PR — fix, feature, refactor, chore. También cuando la rama de integración del repo no es obvia (puede ser main, master, staging, dev, develop, trunk u otra).
 ---
 
 # Use Worktrees
@@ -26,10 +26,12 @@ git rev-parse --show-superproject-working-tree 2>/dev/null   # vacío = no subm�
 ```
 
 - Si `GIT_DIR != GIT_COMMON` y no es submódulo → **ya estás en un worktree**.
-  Saltar a Step 2.
-- Si hay una tool nativa (`EnterWorktree`, `/worktree`, `--worktree`),
-  usarla y saltar a Step 2. NO correr `git worktree add` cuando hay tool
-  nativa — crea estado fantasma que la plataforma no maneja.
+  Saltar Step 3 (crear worktree) pero **igual ejecutar Step 1 y Step 2**:
+  la base sigue haciendo falta para abrir el PR del Step 4.
+- Si hay una herramienta nativa (`EnterWorktree`, `/worktree`, `--worktree`),
+  usarla cuando llegues a Step 3. NO correr `git worktree add` cuando
+  existe nativa — crea estado fantasma que la plataforma no maneja.
+  Step 1 y Step 2 siguen aplicando antes.
 
 ## Step 1: Resolver la rama base
 
