@@ -39,6 +39,9 @@ Después, Claude Code carga las skills automáticamente cuando coincide su
 | [`reuse-existing-patterns`](./skills/reuse-existing-patterns/SKILL.md) | Antes de crear un archivo, validator, guard, helper, componente o constante nueva — buscar si ya existe |
 | [`no-premature-abstraction`](./skills/no-premature-abstraction/SKILL.md) | Antes de proponer una nueva tabla/clase/helper/capa, o cuando el impulso es "ya que estoy acá refactorizo esto otro" |
 | [`verify-before-claim`](./skills/verify-before-claim/SKILL.md) | Antes de afirmar causa raíz de un bug, que un fix funciona, o que algo "no es bloqueante / no es explotable" |
+| [`design-rigor-alternatives`](./skills/design-rigor-alternatives/SKILL.md) | Antes de afirmar una decisión arquitectónica/storage/contrato como "la correcta" — enumerar 2–3 alternativas con tradeoffs primero |
+| [`module-expert-hypothesis`](./skills/module-expert-hypothesis/SKILL.md) | Cuando el maintainer/dueño de un módulo da una pista u objeción casual — tratarla como primera hipótesis a refutar, no a ignorar |
+| [`public-artifact-hygiene`](./skills/public-artifact-hygiene/SKILL.md) | Antes de escribir en sistemas visibles (repos, PRs, commits, Linear, Notion, Slack) — quitar paths locales, workspace privado, referencias a artefactos no compartibles |
 
 ### Seguridad
 
