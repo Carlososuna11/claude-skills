@@ -1,0 +1,209 @@
+---
+name: delegate-to-codex
+description: Usar cuando una tarea de programación es mecánica o bien definida y consumiría muchos tokens del modelo principal — aplicar fixes de code review con diff claro, refactors mecánicos, implementar siguiendo un patrón ya establecido, second-opinion en code review profundo. NO usar para decisiones arquitectónicas, coordinación con stakeholders, brainstorming exploratorio, o curaduría de memoria.
+---
+
+# Delegate to Codex
+
+## Overview
+
+Codex (OpenAI) puede correr Bash, git, tests, y trabajar de forma
+autónoma sobre tareas con spec claro. Delegar a Codex libera tokens
+del modelo principal para trabajo de mayor valor: juicio arquitectónico,
+coordinación, decisiones políticas.
+
+**Principio:** Codex hace; el modelo principal decide. La frontera es
+"¿hay juicio que requiere contexto de la conversación?". Si sí, no
+delegar.
+
+**Anunciar al inicio:** "Delegando a Codex: `<tarea>`. Razón: `<por qué
+califica para delegación>`."
+
+## Step 1: ¿Esta tarea califica para delegación?
+
+### Sí delegar
+
+- Aplicar fixes específicos de code review (cuando hay diff + reasoning
+  claro del reviewer).
+- Refactors mecánicos: rename, mover archivos, consolidar branches
+  similares, extraer función.
+- Implementar siguiendo un patrón ya establecido en el codebase ("hacé
+  X siguiendo el patrón de Y").
+- Escribir tests para código que ya existe.
+- Migrations entre versiones de un patrón (ej. migrar de API v1 a v2).
+- Code review profundo como **second opinion** (cuando ya hiciste tu
+  review y quieres contrastar).
+
+### No delegar
+
+- Análisis de tradeoffs arquitectónicos.
+- Decisiones que requieren contexto de la conversación con stakeholders.
+- Coordinación con humanos (mandar mensajes, abrir tickets, ping a
+  maintainers).
+- Brainstorming exploratorio.
+- Revisión de specs y planes (eso lo hace el modelo principal antes de
+  delegar la implementación).
+- Investigación cross-repo o cross-task que requiere mantener contexto.
+- Curaduría de auto-memoria.
+
+**Test rápido:** "Si Codex devuelve un diff razonable, ¿lo merito directo
+o necesito reconciliarlo con algo que solo está en mi cabeza ahora?"
+Si lo segundo, no delegues — perdés más tiempo coordinando que ejecutando.
+
+## Step 2: Armar el prompt para Codex
+
+Codex no tiene tu contexto de conversación. El prompt debe ser
+**autocontenido**. Plantilla:
+
+```markdown
+## Tarea
+<una frase: qué cambiar, en qué archivos>
+
+## Contexto del repo
+- Ruta absoluta: <path>
+- Branch actual esperado: <branch>
+- Comando de tests: <ej. npm test, pytest, cargo test>
+- Comando de lint/format: <ej. ruff check, eslint .>
+
+## Cambios específicos
+1. En `<archivo:línea>`: <qué cambiar>
+2. En `<archivo>`: <qué crear/borrar>
+
+## Referencias
+- Pattern a seguir: `<archivo>` líneas X-Y
+- Docs relevantes: <link o path>
+- Issue/PR relacionado: <#número>
+
+## Verificación
+- Correr `<comando>` y confirmar que pasa
+- Verificar que `<comportamiento>` sigue funcionando
+
+## Reporte esperado
+- Archivos modificados (con SHA del commit si commiteaste)
+- Tests que pasaron / fallaron
+- Posibles efectos colaterales que detectaste
+- ¿Pusheaste? (default: no, solo commit local para review)
+
+## Reglas
+- NO pasar secrets en outputs.
+- NO hacer `git push --force`.
+- NO `--no-verify` ni `--no-gpg-sign`.
+- Si hay duda, parar y reportar — no improvisar.
+```
+
+Ajustar a la tarea. El "Contexto del repo" y el "Reporte esperado" son
+no-negociables.
+
+## Step 3: Elegir el modelo correcto
+
+Codex tiene varios modelos disponibles. La cuenta del usuario puede no
+soportar todos — los modelos válidos están en `~/.codex/models_cache.json`.
+
+```bash
+cat ~/.codex/models_cache.json | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for m in sorted(data['models'], key=lambda x: -x.get('priority', 0)):
+    print(f\"{m['slug']:<25} {m.get('display_name', ''):<20} default_effort={m.get('default_reasoning_level', '')}\")"
+```
+
+Recomendaciones generales (ajustar al cache actual):
+
+| Tarea | Modelo recomendado |
+|---|---|
+| Review arquitectural serio / decisiones críticas | El frontier disponible (effort xhigh) |
+| Code review tradicional | El estándar (effort medium) |
+| Tarea mecánica / rápida | Variante mini |
+
+**Nunca** pasar un modelo que no esté en el cache — falla en <30 segundos
+con `invalid_request_error: The 'X' model is not supported when using
+Codex with a ChatGPT account`.
+
+## Step 4: Verificar que Codex realmente arrancó
+
+El subagent puede mostrar `Thread ready` y `Turn started` y aún así
+fallar en <30s con error de modelo no soportado, workspace desactivado
+(billing), o tarea malformada. Verificar status:
+
+```bash
+node ~/.claude/plugins/cache/openai-codex/codex/*/scripts/codex-companion.mjs status --json
+```
+
+Mirar:
+- `Running` count → debería ser ≥1 si tu job está corriendo.
+- `latestFinished.status` → si es `failed` para tu jobId, relanzar
+  con el error reportado.
+
+**Falla común — `402 deactivated_workspace`:** el workspace de Codex
+en la cuenta de ChatGPT está desactivado (billing). No es problema de
+modelo. Mientras se reactiva, hacer el trabajo directo en el modelo
+principal.
+
+## Step 5: Recibir el reporte y validar
+
+Cuando Codex termina, devolver al usuario su reporte verbatim si el
+flujo de la skill que invocaste pide eso (ver `codex:rescue` skill
+docs).
+
+Antes de aceptar el trabajo:
+
+1. Mirar el diff: `git log --oneline -5` + `git diff <sha-anterior>..HEAD`.
+2. Confirmar que los tests realmente corrieron y pasaron (no solo que
+   Codex lo afirmó).
+3. Verificar que el commit identity es la correcta (ver
+   `pr-discipline` Step 4).
+4. Si Codex pusheó cuando le habías dicho que no, **flagearlo al
+   usuario** — no aceptar silenciosamente.
+
+Si el trabajo está mal, **no improvisar el fix**. Reportar al usuario
+qué falló y decidir si:
+- Re-dispatch con prompt corregido.
+- Tomar el trabajo de Codex y completarlo en el modelo principal.
+- Descartar y empezar de cero.
+
+## Quick Reference
+
+| Situación | Acción |
+|---|---|
+| Fix de review con diff claro | Delegar |
+| Refactor mecánico (rename, mover) | Delegar |
+| Implementar siguiendo pattern existente | Delegar |
+| Tests para código existente | Delegar |
+| Second opinion en review | Delegar |
+| Tradeoffs arquitectónicos | NO delegar |
+| Coordinación con humanos | NO delegar |
+| Brainstorm exploratorio | NO delegar |
+| Curaduría de memoria | NO delegar |
+| Modelo no en `models_cache.json` | NO usar, falla en 30s |
+| `Thread ready` pero status `failed` | Verificar y relanzar |
+
+## Common Mistakes
+
+- **Delegar sin contexto del repo.** Codex no sabe la ruta absoluta,
+  el branch, ni el comando de tests si no se lo decís.
+- **Asumir que `Thread ready` = está corriendo.** Verificar status.
+- **Pasar un modelo que no soporta la cuenta.** Falla silenciosa en 30s.
+- **Aceptar el reporte sin verificar el diff.** Codex puede afirmar
+  "tests pass" y no haberlos corrido. Validar siempre.
+- **Delegar trabajo que requiere juicio.** El roundtrip de prompt +
+  ejecución + validación cuesta más que hacerlo directo.
+- **Pasarle un secret en el prompt.** Codex loguea; el output queda
+  en transcript.
+
+## Red Flags
+
+**Nunca:**
+- Delegar decisiones arquitectónicas, coordinación con humanos, o
+  brainstorm.
+- Pasar secrets, tokens, passwords en el prompt o el contexto.
+- Aceptar el reporte sin mirar el diff.
+- Permitir `git push --force` o `--no-verify` en el dispatch.
+- Usar un modelo que no esté en `models_cache.json`.
+
+**Siempre:**
+- Prompt autocontenido (Codex no tiene tu contexto).
+- Verificar status después de dispatchar.
+- Mirar el diff antes de aceptar el trabajo.
+- Confirmar atribución del commit.
+- Reportar al usuario si Codex hizo algo distinto a lo pedido (ej.
+  pusheó cuando dijiste que no).

@@ -25,7 +25,11 @@ Después, Claude Code carga las skills automáticamente cuando coincide su
 
 | Skill | Cuándo se invoca |
 |---|---|
-| [`use-worktrees`](./skills/use-worktrees/SKILL.md) | Antes de implementar un fix o feature en cualquier repo de código |
+| [`use-worktrees`](./skills/use-worktrees/SKILL.md) | Antes de implementar un fix o feature en cualquier repo — resuelve la rama base, crea worktree, abre PR |
+| [`careful-destructive-ops`](./skills/careful-destructive-ops/SKILL.md) | Antes de operaciones difíciles de revertir — `rm -rf`, `git reset --hard`, `git push --force`, `DROP TABLE`, `--no-verify` |
+| [`pr-discipline`](./skills/pr-discipline/SKILL.md) | Antes y durante cualquier flujo de PR — alineación previa, atribución, markdown limpio, estilo de review, estrategia de merge |
+| [`delegate-to-codex`](./skills/delegate-to-codex/SKILL.md) | Cuando una tarea es mecánica/bien definida y conviene delegarla a Codex para conservar tokens del modelo principal |
+| [`secrets-handling`](./skills/secrets-handling/SKILL.md) | Antes de comandos que puedan exponer credenciales — leer config de CLI, dumps de env, comandos con secrets inline |
 
 > **Estado**: en construcción. Más skills se van agregando a medida que se
 > destilan patrones útiles del trabajo diario.
