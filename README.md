@@ -23,12 +23,28 @@ Después, Claude Code carga las skills automáticamente cuando coincide su
 
 ## Skills disponibles
 
+### Workflow
+
 | Skill | Cuándo se invoca |
 |---|---|
-| [`use-worktrees`](./skills/use-worktrees/SKILL.md) | Antes de implementar un fix o feature en cualquier repo — resuelve la rama base, crea worktree, abre PR |
-| [`careful-destructive-ops`](./skills/careful-destructive-ops/SKILL.md) | Antes de operaciones difíciles de revertir — `rm -rf`, `git reset --hard`, `git push --force`, `DROP TABLE`, `--no-verify` |
+| [`use-worktrees`](./skills/use-worktrees/SKILL.md) | Antes de iniciar trabajo de código con commits y PR — resuelve la rama base, crea worktree, abre PR contra la base correcta |
 | [`pr-discipline`](./skills/pr-discipline/SKILL.md) | Antes y durante cualquier flujo de PR — alineación previa, atribución, markdown limpio, estilo de review, estrategia de merge |
-| [`delegate-to-codex`](./skills/delegate-to-codex/SKILL.md) | Cuando una tarea es mecánica/bien definida y conviene delegarla a Codex para conservar tokens del modelo principal |
+| [`delegate-to-codex`](./skills/delegate-to-codex/SKILL.md) | Antes de invocar a Codex — ejecución mecánica o análisis que alimenta una decisión |
+
+### Disciplinas de código
+
+| Skill | Cuándo se invoca |
+|---|---|
+| [`read-before-write`](./skills/read-before-write/SKILL.md) | Antes de usar un componente, hook, función o API ajena — y antes de sobreescribir un archivo |
+| [`reuse-existing-patterns`](./skills/reuse-existing-patterns/SKILL.md) | Antes de crear un archivo, validator, guard, helper, componente o constante nueva — buscar si ya existe |
+| [`no-premature-abstraction`](./skills/no-premature-abstraction/SKILL.md) | Antes de proponer una nueva tabla/clase/helper/capa, o cuando el impulso es "ya que estoy acá refactorizo esto otro" |
+| [`verify-before-claim`](./skills/verify-before-claim/SKILL.md) | Antes de afirmar causa raíz de un bug, que un fix funciona, o que algo "no es bloqueante / no es explotable" |
+
+### Seguridad
+
+| Skill | Cuándo se invoca |
+|---|---|
+| [`careful-destructive-ops`](./skills/careful-destructive-ops/SKILL.md) | Antes de operaciones difíciles de revertir — `rm -rf`, `git reset --hard`, `git push --force`, `DROP TABLE`, `--no-verify` |
 | [`secrets-handling`](./skills/secrets-handling/SKILL.md) | Antes de comandos que puedan exponer credenciales — leer config de CLI, dumps de env, comandos con secrets inline |
 
 > **Estado**: en construcción. Más skills se van agregando a medida que se

@@ -41,81 +41,33 @@ tests solos.
 
 ## Step 2: Verificar la base correcta del PR
 
-Antes de crear la branch, confirmar la rama de integración del repo
-(no asumir `main`). Ver skill `use-worktrees` Step 1 — waterfall:
+La rama base del PR no siempre es `main`. **Resolverla invocando la
+skill `use-worktrees`** (Step 1 — waterfall completo). Una vez
+resuelta, queda persistida en auto-memoria y futuras invocaciones la
+toman sin preguntar.
 
-1. Memoria `reference_base_branch_<repo>.md`.
-2. `CLAUDE.md` / `CONTRIBUTING.md`.
-3. `.github/workflows/`.
-4. `gh repo view --json defaultBranchRef`.
-5. Preguntar al usuario.
+Flujos comunes que esta skill respeta:
 
-Repos comunes: feature → staging → main (backend con rolling buffer),
-feature → main (mobile/web simple), feature → dev → master (gitflow).
+| Flujo | Feature branch parte de | PR apunta a |
+|---|---|---|
+| Backend con staging buffer | `staging` | `staging` (después staging → main aparte) |
+| Mobile / web simple | `main` o `main-web` | `main` o `main-web` |
+| Gitflow tradicional | `dev` | `dev` (después `dev` → `master`) |
+| Trunk-based | `main` o `trunk` | `main` o `trunk` |
+
+No asumir; resolver siempre.
 
 ## Step 3: Reutilizar antes que crear
 
-Antes de añadir un archivo, abstracción, helper, validator, guard,
-servicio, componente o constante **nueva**, buscar primero si el
-repositorio ya tiene algo equivalente.
+Antes de añadir cualquier archivo, validator, guard, servicio,
+componente, helper, constante o tipo nuevo: **invocar la skill
+`reuse-existing-patterns`**. Esa skill cubre cómo buscar (por
+categoría), cuándo usar lo existente y cuándo es legítimo crear un
+paralelo (con justificación en el body del PR).
 
-Crear paralelos cuando ya existe un patrón establecido es la causa
-número uno de los comentarios de revisión del tipo "esto ya existe,
-usa el patrón actual" — y obliga a rehacer el trabajo. Más allá del
-review, importa por tres razones:
-
-- **Consistencia interna**: si hay tres formas de validar lo mismo,
-  el próximo dev no sabe cuál usar.
-- **Mantenimiento**: si la regla cambia, hay que tocar N lugares en
-  vez de uno.
-- **Curva de onboarding**: leer un repo con múltiples patrones
-  equivalentes cuesta más que uno con uno solo.
-
-### Qué buscar según el tipo de cambio
-
-| Vas a crear... | Busca primero... |
-|---|---|
-| Validator de input / schema | `validators/`, archivos `*.validator.*`, schemas Zod/Joi/Pydantic existentes |
-| Guard, interceptor, middleware | Carpetas equivalentes (`guards/`, `interceptors/`, `middleware/`) |
-| Servicio / repositorio | Patrones de inyección (`@Injectable`, factories, providers, módulos) |
-| Endpoint admin u operativo | Controllers de tools / admin existentes |
-| Helper de formato (dinero, fechas, números) | Archivos en `utils/`, `helpers/`, `lib/` por nombre similar |
-| Componente UI | `components/` por funcionalidad similar, no solo por nombre |
-| Test | Convención del repo: `__tests__/`, `*.spec.*`, `*.test.*` |
-| Constante / config / enum | Archivos de constants, enums, config consolidados |
-| Tipo / interfaz / DTO | Tipos compartidos en `types/`, `dto/`, `models/` |
-
-### Cómo buscar — comandos universales
-
-```bash
-# Por concepto en el código
-grep -rni "<concepto>" src/ | head -20
-
-# Por exportación de símbolos similares
-grep -rn "export.*<concepto>" src/ | head -20
-
-# Por estructura de carpetas
-fd -t d "<nombre>" src/        # o: find src -type d -iname "*<nombre>*"
-
-# Si el repo usa barrel files / index re-exports
-grep -rn "<concepto>" src/**/index.* 2>/dev/null
-```
-
-Adaptar a la herramienta disponible (`rg` si está, `fd`, o `grep`/
-`find` estándar). El comando importa menos que el reflejo de buscar
-antes de crear.
-
-### Cuándo sí está bien crear paralelos
-
-- El patrón existente está deprecado y el equipo migró a uno nuevo.
-  Verificar en `CHANGELOG`, ADRs, o preguntar al maintainer.
-- El caso de uso es genuinamente distinto y el patrón actual no
-  aplica. Esto se documenta en el body del PR para que el revisor
-  no lo marque como duplicado.
-
-**Prueba rápida antes de codear:** "Si hubiera buscado treinta
-segundos antes de empezar, ¿lo habría encontrado?" Si la respuesta
-es sí, había que buscar.
+No empezar a codear sin haber pasado por ese reflejo — es el motivo
+número uno de comentarios de revisión del tipo *"esto ya existe, usa
+el patrón actual"*.
 
 ## Step 4: Crear el PR — title, body, atribución
 
