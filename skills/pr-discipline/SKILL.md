@@ -21,11 +21,11 @@ consistente siempre, merge target verificado dos veces.
 Mandar un párrafo de proposal al maintainer del módulo **antes** de
 abrir el PR si el cambio toca:
 
-- Shape de respuesta de endpoints existentes.
-- DTO structure o validators.
-- Patterns cross-repo (validators, services, error handling).
-- Abstracciones arquitectónicas (decoradores nuevos, service layers,
-  module patterns).
+- Forma de respuesta de endpoints existentes.
+- Estructura de DTOs o validators.
+- Patrones cross-repo (validators, services, manejo de errores).
+- Abstracciones arquitectónicas (decoradores nuevos, capas de
+  servicio, patrones a nivel de módulo).
 
 Plantilla:
 
@@ -36,8 +36,8 @@ Esperar acknowledgment. Si hay push-back, iterar en texto (barato).
 Si aprueba, el PR pasa sin debate post-facto.
 
 **No aplica a:** bug fixes que no cambian contratos, features que
-siguen patterns existentes, refactors internos a un módulo, docs/tests
-solos.
+siguen patrones existentes, refactors internos a un módulo, docs o
+tests solos.
 
 ## Step 2: Verificar la base correcta del PR
 
@@ -53,25 +53,69 @@ Antes de crear la branch, confirmar la rama de integración del repo
 Repos comunes: feature → staging → main (backend con rolling buffer),
 feature → main (mobile/web simple), feature → dev → master (gitflow).
 
-## Step 3: Antes de buscar nuevos patrones, grepear los existentes
+## Step 3: Reutilizar antes que crear
 
-Antes de crear cualquier archivo nuevo o abstracción, **grepear** el
-repo para patterns equivalentes. Specifically:
+Antes de añadir un archivo, abstracción, helper, validator, guard,
+servicio, componente o constante **nueva**, buscar primero si el
+repositorio ya tiene algo equivalente.
+
+Crear paralelos cuando ya existe un patrón establecido es la causa
+número uno de los comentarios de revisión del tipo "esto ya existe,
+usa el patrón actual" — y obliga a rehacer el trabajo. Más allá del
+review, importa por tres razones:
+
+- **Consistencia interna**: si hay tres formas de validar lo mismo,
+  el próximo dev no sabe cuál usar.
+- **Mantenimiento**: si la regla cambia, hay que tocar N lugares en
+  vez de uno.
+- **Curva de onboarding**: leer un repo con múltiples patrones
+  equivalentes cuesta más que uno con uno solo.
+
+### Qué buscar según el tipo de cambio
+
+| Vas a crear... | Busca primero... |
+|---|---|
+| Validator de input / schema | `validators/`, archivos `*.validator.*`, schemas Zod/Joi/Pydantic existentes |
+| Guard, interceptor, middleware | Carpetas equivalentes (`guards/`, `interceptors/`, `middleware/`) |
+| Servicio / repositorio | Patrones de inyección (`@Injectable`, factories, providers, módulos) |
+| Endpoint admin u operativo | Controllers de tools / admin existentes |
+| Helper de formato (dinero, fechas, números) | Archivos en `utils/`, `helpers/`, `lib/` por nombre similar |
+| Componente UI | `components/` por funcionalidad similar, no solo por nombre |
+| Test | Convención del repo: `__tests__/`, `*.spec.*`, `*.test.*` |
+| Constante / config / enum | Archivos de constants, enums, config consolidados |
+| Tipo / interfaz / DTO | Tipos compartidos en `types/`, `dto/`, `models/` |
+
+### Cómo buscar — comandos universales
 
 ```bash
-# Validators / guards / interceptors
-grep -r "extends.*Guard\|implements.*Validator" src/ | head -20
+# Por concepto en el código
+grep -rni "<concepto>" src/ | head -20
 
-# Service layers, DI tokens
-grep -r "@Injectable\|providers.constants" src/ | head -20
+# Por exportación de símbolos similares
+grep -rn "export.*<concepto>" src/ | head -20
 
-# Test conventions
-find src tests -name "__tests__" -o -name "*.spec.*" -o -name "*.test.*" | head -5
+# Por estructura de carpetas
+fd -t d "<nombre>" src/        # o: find src -type d -iname "*<nombre>*"
+
+# Si el repo usa barrel files / index re-exports
+grep -rn "<concepto>" src/**/index.* 2>/dev/null
 ```
 
-Si el pattern ya existe, **usarlo** — crear paralelos solo agrega ruido
-y es el #1 motivo de "this already exists, use the existing pattern"
-en code review.
+Adaptar a la herramienta disponible (`rg` si está, `fd`, o `grep`/
+`find` estándar). El comando importa menos que el reflejo de buscar
+antes de crear.
+
+### Cuándo sí está bien crear paralelos
+
+- El patrón existente está deprecado y el equipo migró a uno nuevo.
+  Verificar en `CHANGELOG`, ADRs, o preguntar al maintainer.
+- El caso de uso es genuinamente distinto y el patrón actual no
+  aplica. Esto se documenta en el body del PR para que el revisor
+  no lo marque como duplicado.
+
+**Prueba rápida antes de codear:** "Si hubiera buscado treinta
+segundos antes de empezar, ¿lo habría encontrado?" Si la respuesta
+es sí, había que buscar.
 
 ## Step 4: Crear el PR — title, body, atribución
 
@@ -204,7 +248,7 @@ gh pr merge --merge <num>
 |---|---|
 | Cambio toca contratos o arquitectura | Step 1: alinear con maintainer |
 | Crear branch | Step 2: resolver base con waterfall |
-| Empezar implementación | Step 3: grepear patterns existentes |
+| Empezar implementación | Step 3: buscar si el patrón ya existe en el repo |
 | Listo para abrir PR | Step 4: title <70, body con plantilla, verificar atribución |
 | Body o comment con código | Step 5: `gh api PATCH` con JSON |
 | Dejar review | Step 6: bullets por severidad, lead con razón |
@@ -216,8 +260,8 @@ gh pr merge --merge <num>
 - **Abrir PR arquitectónico sin pre-alinear.** Produce 2-3 rondas
   de re-review y debate post-facto. Mandar el párrafo de proposal
   antes de codear.
-- **Crear archivo/pattern nuevo cuando ya existe uno.** Grepear
-  primero. El reviewer va a apuntarlo.
+- **Crear archivo o abstracción nueva cuando ya existe equivalente.**
+  Buscar primero (Step 3). El revisor va a apuntarlo.
 - **Title > 70 chars con la descripción completa.** Title corto, el
   detalle va al body.
 - **Pasar `-c user.email` para commits scriptados.** Sobreescribe la
@@ -235,7 +279,7 @@ gh pr merge --merge <num>
 
 **Nunca:**
 - Abrir PR que toca contratos/arquitectura sin alineación previa.
-- Crear archivo o pattern paralelo cuando ya existe uno.
+- Crear archivo o abstracción paralela cuando ya existe equivalente.
 - Pasar `-c user.email` / `-c user.name` a `git commit`.
 - Pushear sin verificar `git log -1 --format='%ae'`.
 - Usar `gh pr edit --body-file` para markdown con backticks.
@@ -246,7 +290,7 @@ gh pr merge --merge <num>
 **Siempre:**
 - Pre-alinear cambios arquitectónicos con el maintainer.
 - Resolver la base del PR con el waterfall, no asumir `main`.
-- Grepear patterns existentes antes de crear nuevos.
+- Buscar si el patrón ya existe en el repo antes de crear uno nuevo.
 - Title <70 + body con Summary + Test plan + Risk.
 - Verificar atribución del commit antes de push.
 - `gh api PATCH` con JSON para markdown con código.
