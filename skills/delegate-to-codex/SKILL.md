@@ -1,6 +1,6 @@
 ---
 name: delegate-to-codex
-description: Usar cuando una tarea de programación es mecánica o bien definida y consumiría muchos tokens del modelo principal — aplicar fixes de code review con diff claro, refactors mecánicos, implementar siguiendo un patrón ya establecido, second-opinion en code review profundo. NO usar para decisiones arquitectónicas, coordinación con stakeholders, brainstorming exploratorio, o curaduría de memoria.
+description: Usar cuando una tarea consumiría muchos tokens del modelo principal y se puede delegar a Codex sin perder la decisión — ejecución mecánica (fixes, refactors, tests, migrations siguiendo un patrón), análisis profundo que alimenta una decisión (code review, second opinion, brainstorming generativo de alternativas, investigación cross-repo). NO usar para la decisión final, coordinación con stakeholders, curaduría de auto-memoria, o tareas que dependen de la conversación viva con el usuario.
 ---
 
 # Delegate to Codex
@@ -9,19 +9,19 @@ description: Usar cuando una tarea de programación es mecánica o bien definida
 
 Codex (OpenAI) puede correr Bash, git, tests, y trabajar de forma
 autónoma sobre tareas con spec claro. Delegar a Codex libera tokens
-del modelo principal para trabajo de mayor valor: juicio arquitectónico,
-coordinación, decisiones políticas.
+del modelo principal para trabajo donde el contexto vivo importa:
+coordinación, decisiones, conversación con el usuario.
 
-**Principio:** Codex hace; el modelo principal decide. La frontera es
-"¿hay juicio que requiere contexto de la conversación?". Si sí, no
-delegar.
+**Principio:** Codex **genera material** (diffs, findings, alternativas,
+hallazgos); el modelo principal **decide** con el usuario. Delegar el
+análisis es bueno; delegar la decisión final no.
 
 **Anunciar al inicio:** "Delegando a Codex: `<tarea>`. Razón: `<por qué
 califica para delegación>`."
 
 ## Step 1: ¿Esta tarea califica para delegación?
 
-### Sí delegar
+### Sí delegar — Ejecución mecánica
 
 - Aplicar fixes específicos de code review (cuando hay diff + reasoning
   claro del reviewer).
@@ -31,24 +31,36 @@ califica para delegación>`."
   X siguiendo el patrón de Y").
 - Escribir tests para código que ya existe.
 - Migrations entre versiones de un patrón (ej. migrar de API v1 a v2).
-- Code review profundo como **second opinion** (cuando ya hiciste tu
-  review y quieres contrastar).
+
+### Sí delegar — Análisis que alimenta una decisión
+
+- **Code review profundo**: pedirle a Codex que revise un PR completo
+  o un flow end-to-end y devuelva findings concretos (con archivo:línea,
+  severidad, sugerencia).
+- **Second opinion**: cuando tienes una decisión ~70% definida, pedirle
+  a Codex que la critique adversarialmente. Suele traer argumentos no
+  considerados.
+- **Brainstorming generativo**: "dame 3 enfoques alternativos para
+  resolver X, con tradeoffs concretos". Codex genera, tú decides con
+  el usuario cuál tomar.
+- **Investigación profunda**: leer muchos archivos / docs y devolver
+  un resumen estructurado de hallazgos. Útil cuando el costo de tokens
+  de leer todo en el modelo principal es alto.
 
 ### No delegar
 
-- Análisis de tradeoffs arquitectónicos.
-- Decisiones que requieren contexto de la conversación con stakeholders.
+- La **decisión final** sobre arquitectura, scope, prioridades. Codex
+  puede sugerir; la decisión la tomas tú con el usuario.
 - Coordinación con humanos (mandar mensajes, abrir tickets, ping a
   maintainers).
-- Brainstorming exploratorio.
-- Revisión de specs y planes (eso lo hace el modelo principal antes de
-  delegar la implementación).
-- Investigación cross-repo o cross-task que requiere mantener contexto.
-- Curaduría de auto-memoria.
+- Curaduría de auto-memoria — eso depende de tu lectura de la
+  conversación.
+- Tareas que requieren mantener contexto de la conversación viva con
+  el usuario (ej. "según lo que acabamos de discutir, hacé X").
 
-**Test rápido:** "Si Codex devuelve un diff razonable, ¿lo merito directo
-o necesito reconciliarlo con algo que solo está en mi cabeza ahora?"
-Si lo segundo, no delegues — perdés más tiempo coordinando que ejecutando.
+**Test rápido:** "¿El resultado de Codex es material para que yo decida,
+o estoy pidiéndole que decida por mí?" Si lo primero, delegá. Si lo
+segundo, no.
 
 ## Step 2: Armar el prompt para Codex
 
@@ -165,15 +177,18 @@ qué falló y decidir si:
 
 | Situación | Acción |
 |---|---|
-| Fix de review con diff claro | Delegar |
-| Refactor mecánico (rename, mover) | Delegar |
-| Implementar siguiendo pattern existente | Delegar |
-| Tests para código existente | Delegar |
-| Second opinion en review | Delegar |
-| Tradeoffs arquitectónicos | NO delegar |
+| Fix de review con diff claro | Delegar (ejecución) |
+| Refactor mecánico (rename, mover) | Delegar (ejecución) |
+| Implementar siguiendo pattern existente | Delegar (ejecución) |
+| Tests para código existente | Delegar (ejecución) |
+| Code review profundo de PR/flow | Delegar (análisis) |
+| Second opinion adversarial | Delegar (análisis) |
+| "Dame 3 enfoques con tradeoffs" | Delegar (brainstorm generativo) |
+| Investigación cross-repo (leer mucho) | Delegar (análisis) |
+| Decidir cuál enfoque tomar | NO delegar (decisión tuya + usuario) |
 | Coordinación con humanos | NO delegar |
-| Brainstorm exploratorio | NO delegar |
 | Curaduría de memoria | NO delegar |
+| Pedirle continuación de conversación viva | NO delegar |
 | Modelo no en `models_cache.json` | NO usar, falla en 30s |
 | `Thread ready` pero status `failed` | Verificar y relanzar |
 
@@ -193,17 +208,21 @@ qué falló y decidir si:
 ## Red Flags
 
 **Nunca:**
-- Delegar decisiones arquitectónicas, coordinación con humanos, o
-  brainstorm.
+- Delegar la **decisión final** (Codex puede sugerir; tú decides con
+  el usuario).
+- Delegar coordinación con humanos.
+- Delegar curaduría de auto-memoria.
 - Pasar secrets, tokens, passwords en el prompt o el contexto.
-- Aceptar el reporte sin mirar el diff.
+- Aceptar el reporte sin mirar el diff o los findings.
 - Permitir `git push --force` o `--no-verify` en el dispatch.
 - Usar un modelo que no esté en `models_cache.json`.
 
 **Siempre:**
 - Prompt autocontenido (Codex no tiene tu contexto).
+- Pedir reporte estructurado (findings, archivos, comandos corridos,
+  posibles efectos colaterales).
 - Verificar status después de dispatchar.
-- Mirar el diff antes de aceptar el trabajo.
+- Mirar el diff o los findings antes de aceptar el trabajo.
 - Confirmar atribución del commit.
 - Reportar al usuario si Codex hizo algo distinto a lo pedido (ej.
   pusheó cuando dijiste que no).
