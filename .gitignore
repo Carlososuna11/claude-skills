@@ -1,0 +1,9 @@
+# Notas locales de uso de skills — privadas, no se publican
+NOTAS_USO.md
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*~
