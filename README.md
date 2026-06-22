@@ -49,6 +49,27 @@ Después, Claude Code carga las skills automáticamente cuando coincide su
 |---|---|
 | [`adversarial-code-review`](./skills/adversarial-code-review/SKILL.md) | Al revisar código (propio o ajeno) — 4 lentes: abstracciones correctas, separación de capas, security thinking, mantenibilidad a largo plazo |
 
+### Diseño de API y datos
+
+| Skill | Cuándo se invoca |
+|---|---|
+| [`paginate-and-filter`](./skills/paginate-and-filter/SKILL.md) | Al diseñar endpoints de listado o vistas con tablas — paginación, filtros server-side, evitar N+1 |
+| [`api-schema-separation`](./skills/api-schema-separation/SKILL.md) | Al definir endpoints o exponer datos — schemas Create/Update/Response separados del modelo de DB |
+| [`migrations-always`](./skills/migrations-always/SKILL.md) | Antes de cambiar schema de DB — siempre archivo de migration, nunca cambios manuales, histórico inmutable |
+
+### Frontend / UI
+
+| Skill | Cuándo se invoca |
+|---|---|
+| [`frontend-screen-and-loading`](./skills/frontend-screen-and-loading/SKILL.md) | Al diseñar vistas — aprovechar la pantalla, skeletons en lugar de spinners, 5 estados visuales explícitos |
+| [`openapi-frontend-sync`](./skills/openapi-frontend-sync/SKILL.md) | Al implementar endpoints en frontend después de cambios en backend — regenerar cliente desde OpenAPI, no escribir tipos a mano |
+
+### Deploy
+
+| Skill | Cuándo se invoca |
+|---|---|
+| [`pre-deploy-checklist`](./skills/pre-deploy-checklist/SKILL.md) | Antes de cualquier deploy o merge a la rama de release — tests, lint, format, typecheck, migrations, env vars, smoke test |
+
 ### Seguridad
 
 | Skill | Cuándo se invoca |
